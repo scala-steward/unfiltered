@@ -4,22 +4,26 @@ import language.experimental.macros
 
 import reflect.macros.Context
 
-object Porthole {
-  def apply(param: Any): (String, List[String]) = macro applyImpl
+case class Porthole(obj: String, method: String, params: List[String])
 
-  def applyImpl(c: Context)(param: c.Expr[Any]): c.Expr[(String,List[String])] = {
+object Porthole {
+  def apply(param: Any): Porthole = macro applyImpl
+
+  def applyImpl(c: Context)(param: c.Expr[Any]): c.Expr[Porthole] = {
     import c.universe._
     def mismatch() =
       c.abort(c.enclosingPosition,
-        "Porthole mismatch:\nMust be called directly on a method, e.g. Porhole(MyObject.myMethod _)")
+        "Porthole mismatch:\nMust be called directly on a method, e.g. Porhole(MyObject.myMethod _)\n" +
+          showRaw(param.tree)
+      )
 
     val body = param.tree match {
-      case Function(vparams, body) => body
       case Block(_, Function(vparams, body)) => body
       case _ => mismatch()
     }
-    val (methodName, params) = body match {
-      case Apply(Select(obj, method), params) => (obj.toString + "." + method.decoded, params)
+    val (obj, method, params) = body match {
+      case Apply(Select(Ident(name), method), params) => (name, method, params)
+      case Apply(Select(Select(_,  name), method), params) => (name, method, params)
       case _ => mismatch()
     }
     val listApply = Select(reify(List).tree, newTermName("apply"))
@@ -28,6 +32,8 @@ object Porthole {
     }
 
     val argList = c.Expr[List[String]](Apply(listApply, names))
-    reify(c.literal(methodName).splice -> argList.splice)
+    reify(Porthole(c.literal(obj.decoded).splice,
+      c.literal(method.decoded).splice,
+      argList.splice))
   }
 }
