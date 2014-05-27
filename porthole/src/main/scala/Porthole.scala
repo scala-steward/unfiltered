@@ -13,7 +13,7 @@ object Porthole {
     import c.universe._
     def mismatch() =
       c.abort(c.enclosingPosition,
-        "Porthole mismatch:\nMust be called directly on a method, e.g. Porhole(MyObject.myMethod _)\n" +
+        "Porthole mismatch:\nMust be called directly on a method, e.g. Porthole(MyObject.myMethod _)\n" +
           showRaw(param.tree)
       )
 
